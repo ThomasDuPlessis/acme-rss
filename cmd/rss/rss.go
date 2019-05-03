@@ -51,7 +51,7 @@ func setDir(usr *user.User, feed_name string) {
 
 func main() {
 	args := flag.Args()
-	if (len(args) > 0) {
+	if len(args) > 0 {
 		fmt.Println(args)
 	}
 	usr, err := user.Current()
@@ -66,10 +66,8 @@ func main() {
 	if err != nil {
 		fmt.Println("error creating acme window")
 	}
-	tag := "rss"
-	w.Name(tag) 
-	w.Write("tag", []byte(tag))
-
+	w.Name("rss")
+	w.Write("tag", []byte("rss"))
 
 	for _, f := range feeds {
 		if f == "" {
@@ -79,7 +77,7 @@ func main() {
 		if err != nil {
 			fmt.Println(err)
 		}
-		w.Write("data", []byte(feed.Title + "\n"))
+		w.Write("data", []byte(feed.Title+"\n"))
 		setDir(usr, feed.Title)
 
 	}
