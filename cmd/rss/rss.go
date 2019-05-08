@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/mmcdole/gofeed"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/user"
@@ -23,6 +24,16 @@ func cleanFeedName(feed_name string) string {
 	return strings.Replace(feed_name, " ", "_", -1)
 }
 
+func unCleanFeedName(feed_name string) string {
+	return strings.Replace(feed_name, "_", " ", -1)
+}
+
+func setDir(usr *user.User, ) {
+	if len(*dir) < 1 {
+		*dir = usr.HomeDir + "/feeds/"
+	}
+}
+
 func getFeeds(usr *user.User) []string {
 	file, err := os.Open(usr.HomeDir + "/.feeds")
 	if err != nil {
@@ -37,15 +48,27 @@ func getFeeds(usr *user.User) []string {
 	return lines
 }
 
-func setDir(usr *user.User, feed_name string) {
-	if len(*dir) < 1 {
-		fmt.Println(usr.HomeDir + "/feeds/")
-		*dir = usr.HomeDir + "/feeds/"
-	}
-	feedPath := *dir + feed_name
+func createDir(feed_name string) {
+
+	feedPath := *dir + cleanFeedName(feed_name)
 	if _, err := os.Stat(feedPath); os.IsNotExist(err) {
 		fmt.Println("creating: " + feedPath)
 		os.MkdirAll(*dir+"/"+cleanFeedName(feed_name), os.ModePerm)
+	}
+}
+
+func syncFeeds(w *acme.Win, feeds []string) {
+	fp := gofeed.NewParser()
+	for _, f := range feeds {
+		if f == "" {
+			continue
+		}
+		feed, err := fp.ParseURL(f)
+		if err != nil {
+			fmt.Println(err)
+		}
+		w.Write("data", []byte(feed.Title+"\n"))
+		createDir(feed.Title)
 	}
 }
 
@@ -59,27 +82,24 @@ func main() {
 		fmt.Println("ERROR: ", err)
 		return
 	}
-	fp := gofeed.NewParser()
+	setDir(usr)
 	feeds := getFeeds(usr)
 
 	w, err := acme.New()
 	if err != nil {
 		fmt.Println("error creating acme window")
 	}
-	w.Name("rss")
 	w.Write("tag", []byte("rss"))
-
-	for _, f := range feeds {
-		if f == "" {
-			continue
-		}
-		feed, err := fp.ParseURL(f)
-		if err != nil {
-			fmt.Println(err)
-		}
-		w.Write("data", []byte(feed.Title+"\n"))
-		setDir(usr, feed.Title)
-
-	}
+	go syncFeeds(w, feeds)
+    files, err := ioutil.ReadDir(*dir)
+    if err != nil {
+        log.Fatal(err)
+    }
+	var currentFeeds []string
+    for _, f := range files {
+		actualName := unCleanFeedName(f.Name())
+		w.Write("data", []byte(actualName + "\n"))
+		currentFeeds = append(currentFeeds, actualName)
+    }
 
 }
