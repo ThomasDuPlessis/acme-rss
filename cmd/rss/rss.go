@@ -54,10 +54,12 @@ func main() {
 	if err != nil {
 		fmt.Println("error creating acme window")
 	}
-	w.Write("tag", []byte("rss"))
+	w.Name("+rss")
+	w.Write("tag", []byte("Refresh the"))
 	db.SyncFeeds(w, feeds)
 	currentFeeds := db.GetCurrentFeeds()
     for _, feedname := range currentFeeds {
 		w.Write("data", []byte(feedname + "\n"))
     }
+	w.Ctl("clean")
 }

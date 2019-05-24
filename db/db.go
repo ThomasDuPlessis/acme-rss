@@ -10,6 +10,7 @@ import (
 	"os"
 	"log"
 	"strings"
+	"time"
 )
 
 var (
@@ -27,8 +28,40 @@ func unCleanFeedName(feed_name string) string {
 	return strings.Replace(name, ".json", " ", -1)
 }
 
-func SyncFeed(f gofeed.Feed) {
-	fmt.Printf("%v %v\n", f.UpdatedParsed, len(f.Items))
+func WriteFeed(feed *gofeed.Feed, overwrite bool) {
+	data, _ := json.Marshal(feed)
+	feedPath := cleanFeedName(feed.Title)
+	if _, err := os.Stat(feedPath); os.IsNotExist(err) {
+		if err := ioutil.WriteFile(feedPath, data, 0644); err != nil {
+			log.Printf("failed to write feed %v to %v", feed.Title, feedPath)
+		}
+	}
+	if overwrite {
+		if err := ioutil.WriteFile(feedPath, data, 0644); err != nil {
+			log.Printf("failed to write feed %v to %v", feed.Title, feedPath)
+		}
+	}
+}
+
+// Returns the feed as it is on disk
+func ReadFeed(feed *gofeed.Feed) (*gofeed.Feed, error) {
+	// Read file in to sync with.
+	feedPath := cleanFeedName(feed.Title)
+	oldFile, _ := ioutil.ReadFile(feedPath)
+	oldFeed := &gofeed.Feed{}
+
+	if err := json.Unmarshal([]byte(oldFile), oldFeed); err != nil {
+		log.Printf("Could not read in json format from %v: %v", feedPath, err)
+		return nil, err
+	}
+	return oldFeed, nil
+}
+
+func getLatestFeedDate(i *gofeed.Item) *time.Time {
+	if i.UpdatedParsed != nil && i.UpdatedParsed.After(*i.PublishedParsed) {
+		return i.UpdatedParsed
+	}
+	return i.PublishedParsed
 }
 
 func SyncFeeds(w *acme.Win, feeds []string) {
@@ -41,13 +74,23 @@ func SyncFeeds(w *acme.Win, feeds []string) {
 		if err != nil {
 			fmt.Println(err)
 		}
-		SyncFeed(*feed)
 		w.Write("data", []byte(feed.Title+"\n"))
-		file, _ := json.Marshal(feed)
-		feedPath := cleanFeedName(feed.Title)
-		if _, err := os.Stat(feedPath); os.IsNotExist(err) {
-			_ = ioutil.WriteFile(feedPath, file, 0644)
+		WriteFeed(feed, false)
+
+		oldFeed, err := ReadFeed(feed)
+		if err != nil {
+			return
 		}
+		lastItemDate := feed.Items[len(feed.Items)-1].PublishedParsed
+		var cut int
+		for i, item := range oldFeed.Items {
+			if lastItemDate.Before(*getLatestFeedDate(item)) {
+				cut = i
+				break
+			}
+		}
+		feed.Items = append(feed.Items, oldFeed.Items[cut:]...)
+		WriteFeed(feed, true)
 	}
 }
 
