@@ -7,9 +7,11 @@ import (
 	"fmt"
 	//	"github.com/mmcdole/gofeed"
 	"github.com/thomasduplessis/acme-rss/db"
+	"github.com/thomasduplessis/acme-rss/ui"
 	"log"
 	"os"
 	"os/user"
+	"strings"
 )
 
 var (
@@ -52,14 +54,13 @@ func main() {
 
 	w, err := acme.New()
 	if err != nil {
-		fmt.Println("error creating acme window")
+		fmt.Println("%v", err)
 	}
 	w.Name("+rss")
-	w.Write("tag", []byte("Refresh the"))
-	db.SyncFeeds(w, feeds)
+	w.Write("tag", []byte("Refresh"))
+	go db.SyncFeeds(w, feeds)
 	currentFeeds := db.GetCurrentFeeds()
-    for _, feedname := range currentFeeds {
-		w.Write("data", []byte(feedname + "\n"))
-    }
+	w.Write("body", []byte(strings.Join(currentFeeds, "\n")))
+	ui.Listen(w)
 	w.Ctl("clean")
 }
