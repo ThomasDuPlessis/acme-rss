@@ -1,7 +1,6 @@
 package db
 
 import (
-	"9fans.net/go/acme"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"log"
 	"strings"
 	"time"
+    "path/filepath"
 )
 
 var (
@@ -64,7 +64,7 @@ func getLatestFeedDate(i *gofeed.Item) *time.Time {
 	return i.PublishedParsed
 }
 
-func SyncFeeds(w *acme.Win, feeds []string) {
+func SyncFeeds(feeds []string) {
 	fp := gofeed.NewParser()
 	for _, f := range feeds {
 		if f == "" {
@@ -73,8 +73,8 @@ func SyncFeeds(w *acme.Win, feeds []string) {
 		feed, err := fp.ParseURL(f)
 		if err != nil {
 			fmt.Println(err)
+			return
 		}
-		w.Write("data", []byte(feed.Title+"\n"))
 		WriteFeed(feed, false)
 
 		oldFeed, err := ReadFeed(feed)
@@ -106,4 +106,28 @@ func GetCurrentFeeds() []string {
 		currentFeeds = append(currentFeeds, actualName)
 	}
 	return currentFeeds
+}
+
+func ReadInFeedsOnDisk() []gofeed.Feed {
+	var files []string
+	err := filepath.Walk(*Dir, func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir(){
+        	files = append(files, path)
+		}
+        return nil
+    })
+    if err != nil {
+        panic(err)
+    }
+	var feeds []gofeed.Feed
+	for _, path := range files {
+		file, _ := ioutil.ReadFile(path)
+		feed := &gofeed.Feed{}
+		if err := json.Unmarshal([]byte(file), feed); err != nil {
+			fmt.Printf("Could not read in json format from %v: %v", path, err)
+			continue
+		}
+		feeds = append(feeds, *feed)
+	}
+	return feeds
 }

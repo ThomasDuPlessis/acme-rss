@@ -58,9 +58,10 @@ func main() {
 	}
 	w.Name("+rss")
 	w.Write("tag", []byte("Refresh"))
-	go db.SyncFeeds(w, feeds)
+	go db.SyncFeeds(feeds)
 	currentFeeds := db.GetCurrentFeeds()
 	w.Write("body", []byte(strings.Join(currentFeeds, "\n")))
+	ui.SetFeeds(db.ReadInFeedsOnDisk())
 	ui.Listen(w)
 	w.Ctl("clean")
 }
