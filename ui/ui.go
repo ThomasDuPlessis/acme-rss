@@ -1,25 +1,26 @@
 package ui
 
 import (
-	"9fans.net/go/acme"
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/mmcdole/gofeed"
-	"github.com/thomasduplessis/acme-rss/db"
 	"io"
 	"os"
 	"os/user"
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"9fans.net/go/acme"
+	"github.com/mmcdole/gofeed"
+	"github.com/thomasduplessis/acme-rss/db"
 )
 
 var (
-	Feeds = map[string]gofeed.Feed{}
+	// Feeds holds feed names to their feed structs
+	Feeds  = map[string]gofeed.Feed{}
 	htmlre = regexp.MustCompile("<br( /)*>")
 )
-
 
 func SetFeeds(feeds []gofeed.Feed) {
 	for _, f := range feeds {
@@ -56,7 +57,6 @@ func readLine(w *acme.Win, charaddr int) (string, error) {
 	panic("unreachable")
 }
 
-
 func ListenFeedPage(w *acme.Win, feed *gofeed.Feed) {
 	for e := range w.EventChan() {
 		switch e.C2 {
@@ -80,7 +80,7 @@ func ListenFeedPage(w *acme.Win, feed *gofeed.Feed) {
 			found := false
 			for _, item := range feed.Items {
 				if item.Title == line {
-					content := htmlre.ReplaceAllString(item.Description +"\n" +  item.Content, "\n")
+					content := htmlre.ReplaceAllString(item.Description+"\n"+item.Content, "\n")
 					nw.Write("body", []byte(content))
 					found = true
 					break
@@ -132,12 +132,12 @@ func Listen(w *acme.Win) {
 			nw.Name("feed")
 			nw.Write("tag", []byte(line))
 			var titles []string
-			
+
 			if feed, ok := Feeds[line]; ok {
 				for _, item := range feed.Items {
 					titles = append(titles, item.Title)
 				}
-				nw.Write("body",[]byte(strings.Join(titles, "\n")))
+				nw.Write("body", []byte(strings.Join(titles, "\n")))
 				go ListenFeedPage(nw, &feed)
 			} else {
 				var names []string
@@ -181,7 +181,6 @@ func getFeeds(usr *user.User) []string {
 	}
 	return lines
 }
-
 
 func Refresh(w *acme.Win) {
 	usr, err := user.Current()

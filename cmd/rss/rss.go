@@ -3,9 +3,7 @@ package main
 import (
 	"9fans.net/go/acme"
 	"bufio"
-	"flag"
 	"fmt"
-	//	"github.com/mmcdole/gofeed"
 	"github.com/thomasduplessis/acme-rss/db"
 	"github.com/thomasduplessis/acme-rss/ui"
 	"log"
@@ -38,20 +36,14 @@ func getFeeds(usr *user.User) []string {
 	return lines
 }
 
-
 func main() {
-	args := flag.Args()
-	if len(args) > 0 {
-		fmt.Println(args)
-	}
 	usr, err := user.Current()
 	if err != nil {
-		fmt.Println("ERROR: ", err)
+		fmt.Println(err)
 		return
 	}
 	setDir(usr)
 	feeds := getFeeds(usr)
-
 	w, err := acme.New()
 	if err != nil {
 		fmt.Println("%v", err)
